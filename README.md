@@ -1,3 +1,5 @@
+This fork waits for pre build scripts to finish before build
+
 [![npm version](https://badge.fury.io/js/webpack-shell-plugin.svg)](https://badge.fury.io/js/webpack-shell-plugin)
 ![](https://reposs.herokuapp.com/?path=1337programming/webpack-shell-plugin)
 [![npm](https://img.shields.io/npm/dm/webpack-shell-plugin.svg)]()

@@ -16,9 +16,12 @@ export default class WebpackShellPlugin {
     this.options = this.validateInput(this.mergeOptions(options, defaultOptions));
   }
 
-  puts(error, stdout, stderr) {
-    if (error) {
-      throw error;
+  puts(resolve) {
+    return (error, stdout, stderr) => {
+      if (error) {
+        throw error;
+      }
+      resolve();
     }
   }
 
@@ -30,20 +33,20 @@ export default class WebpackShellPlugin {
   serializeScript(script) {
     if (typeof script === 'string') {
       const [command, ...args] = script.split(' ');
-      return {command, args};
+      return { command, args };
     }
-    const {command, args} = script;
-    return {command, args};
+    const { command, args } = script;
+    return { command, args };
   }
 
   handleScript(script) {
     if (os.platform() === 'win32' || this.options.safe) {
-      this.spreadStdoutAndStdErr(exec(script, this.puts));
-    } else {
-      const {command, args} = this.serializeScript(script);
-      const proc = spawn(command, args, {stdio: 'inherit'});
-      proc.on('close', this.puts);
+      return new Promise(resolve => this.spreadStdoutAndStdErr(exec(script, this.puts(resolve))));
     }
+
+    const { command, args } = this.serializeScript(script);
+    const proc = spawn(command, args, { stdio: 'inherit' });
+    return new Promise(resolve => proc.on('close', this.puts(resolve)));
   }
 
   validateInput(options) {
@@ -70,7 +73,7 @@ export default class WebpackShellPlugin {
 
   apply(compiler) {
 
-    compiler.plugin('compilation', (compilation) => {
+    compiler.plugin('before-compile', async (compilation, cb) => {
       if (this.options.verbose) {
         console.log(`Report compilation: ${compilation}`);
         console.warn(`WebpackShellPlugin [${new Date()}]: Verbose is being deprecated, please remove.`);
@@ -78,12 +81,13 @@ export default class WebpackShellPlugin {
       if (this.options.onBuildStart.length) {
         console.log('Executing pre-build scripts');
         for (let i = 0; i < this.options.onBuildStart.length; i++) {
-          this.handleScript(this.options.onBuildStart[i]);
+          await this.handleScript(this.options.onBuildStart[i]);
         }
         if (this.options.dev) {
           this.options.onBuildStart = [];
         }
       }
+      cb();
     });
 
     compiler.plugin('after-emit', (compilation, callback) => {
